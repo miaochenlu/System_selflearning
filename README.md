@@ -23,10 +23,20 @@ could refer to <a href=" https://www.cprogramming.com/gdb.html ">this material</
 gcc -g test.cpp
 lldb a.out
 ```
-
-<img src="img/image-20200802215849193.png" alt="image-20200802215849193" style="zoom:67%;" />![image-20200802215945672](img/image-20200802215945672.png)<img src="img/image-20200802215849193.png" alt="image-20200802215849193" style="zoom:67%;" />![image-20200802215945672](img/image-20200802215945672.png)
-
-<img src="img/image-20200802220019900.png" alt="image-20200802220019900" style="zoom:67%;" /><img src="img/image-20200804130827095.png" alt="image-20200804130827095" style="zoom: 40%;" /><img src="img/image-20200804131040174.png" alt="image-20200804131040174" style="zoom: 35%;" /><img src="img/image-20200804132041557.png" alt="image-20200804132041557" style="zoom: 30%;" />
+<table>
+    <tr>
+        <td><img src="img/image-20200802215849193.png" alt="image-20200802215849193" style="zoom:20%;" /></td>
+        <td><img src="img/image-20200802215945672.png" alt="image-20200802215945672" style="zoom:20%;" /></td>
+    </tr>
+    <tr>
+        <td><img src="img/image-20200802220019900.png" alt="image-20200802220019900" style="zoom:30%;" /></td>
+        <td><img src="img/image-20200804130827095.png" alt="image-20200804130827095" style="zoom:30%;" /></td>
+    </tr>
+    <tr>
+        <td><img src="img/image-20200804131040174.png" alt="image-20200804131040174" style="zoom:20%;" /></td>
+        <td><img src="img/image-20200804132041557.png" alt="image-20200804132041557" style="zoom:20%;" /></td>
+    </tr>
+</table>
 
 
 
