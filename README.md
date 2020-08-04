@@ -67,7 +67,7 @@ Tmux入门: https://linux.cn/article-3952-1.html
 
 我觉得直接vim也还行，并不是很懂这块，我就直接vim了
 
-<img src="../OperatingSystem/img/image-20200804211809206.png" alt="image-20200804211809206" style="zoom:80%;" />
+<img src="img/image-20200804211809206.png" alt="image-20200804211809206" style="zoom:80%;" />
 
 
 
