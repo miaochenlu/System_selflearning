@@ -766,3 +766,12 @@ uint32_t eval(int left, int right, bool* success) {
 }
 ```
 
+
+
+结果
+
+![image-20200812220934319](img/image-20200812220934319.png)
+
+![image-20200812221103408](img/image-20200812221103408.png)
+
+![image-20200812221154082](img/image-20200812221154082.png)
