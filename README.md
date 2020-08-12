@@ -6,7 +6,7 @@
 
 
 
-# Day1
+# 20200802
 
 PA0完成
 
@@ -99,7 +99,7 @@ Or try executing
 
 
 
-# Day3
+# 20200804
 
 PA1部分完成
 
@@ -306,15 +306,306 @@ static int cmd_x(char* args) {
 
 
 
+# 20200806
+
+PA1部分完成
+
+- [x] `expr`简单形式，只实现+-*/()
 
 
 
+expression的计算整体上可以划分两个步骤
+
+* 生成tokens
+* 根据tokens进行表达式计算
+
+```cpp
+uint32_t expr(char *e, bool *success) {
+    if (!make_token(e)) {
+        *success = false;
+        return 0;
+    } 
+  /* TODO: Insert codes to evaluate the expression. */
+  //  return 0;  
+    return eval(0, nr_token - 1, success);
+}
+```
 
 
 
+设置token如下所示
+
+```cpp
+enum {
+  TK_NOTYPE = 256, 
+  TK_EQ,
+  TK_PLUS = '+',
+  TK_MINUS = '-',
+  TK_MUL = '*',
+  TK_DIV = '/',
+  TK_LP = '(',
+  TK_RP = ')',
+  TK_NUM = 1000,
+  /* TODO: Add more token types */
+};
+```
+
+然后构建对应的正则表达式规则
+
+```cpp
+static struct rule {
+  char *regex;
+  int token_type;
+} rules[] = {
+
+  /* TODO: Add more rules.
+   * Pay attention to the precedence level of different rules.
+   */
+    {" +", TK_NOTYPE},      // spaces
+    {"\\+", TK_PLUS},       // plus
+    {"\\-", TK_MINUS},      // minus
+    {"\\*", TK_MUL},        // multiply
+    {"\\/", TK_DIV},        // divide
+    {"\\(", TK_LP},         // left parenthese
+    {"\\)", TK_RP},         // right parenthese
+    {"==", TK_EQ},          // equal
+    {"[0-9]+", TK_NUM},     // number
+};
+```
 
 
 
+用`make_token`函数扫描输入串，根据规则构造token, 将token放入tokens数组，nr_token表示token的数量
+
+```cpp
+static bool make_token(char *e) {
+  int position = 0;
+  int i;
+  regmatch_t pmatch;
+
+  nr_token = 0;
+
+  while (e[position] != '\0') {
+    /* Try all rules one by one. */
+    for (i = 0; i < NR_REGEX; i ++) {
+      if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
+        char *substr_start = e + position;
+        int substr_len = pmatch.rm_eo;
+
+        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        position += substr_len;
+
+        /* TODO: Now a new token is recognized with rules[i]. Add codes
+         * to record the token in the array `tokens'. For certain types
+         * of tokens, some extra actions should be performed.
+         */
+        switch (rules[i].token_type) {
+            case TK_NOTYPE: break;
+            case TK_NUM:
+                        assert(substr_len < 32);
+                        memset(tokens[nr_token].str, 0, sizeof(tokens[nr_token].str));
+                        strncpy(tokens[nr_token].str, substr_start, substr_len);
+                        tokens[nr_token].type = TK_NUM;
+                        nr_token++;
+                        break;
+            default:    
+                        tokens[nr_token].type = rules[i].token_type;
+                        nr_token++;
+        }
+
+        break;
+      }
+    }
+    if (i == NR_REGEX) {
+      printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
+      return false;
+    }
+  }
+
+  return true;
+}
+```
+
+构造好token后，我们就要进行计算,  这个过程由`eval`函数进行, 主要用到了递归和分治的思想。
+
+为了在token表达式中指示一个子表达式, 我们可以使用两个整数`p`和`q`来指示这个子表达式的开始位置和结束位置. 这样我们就可以很容易把求值函数的框架写出来了:
+
+```c
+eval(p, q) {
+  if (p > q) {
+    /* Bad expression */
+  }
+  else if (p == q) {
+    /* Single token.
+     * For now this token should be a number.
+     * Return the value of the number.
+     */
+  }
+  else if (check_parentheses(p, q) == true) {
+    /* The expression is surrounded by a matched pair of parentheses.
+     * If that is the case, just throw away the parentheses.
+     */
+    return eval(p + 1, q - 1);
+  }
+  else {
+    /* We should do more things here. */
+  }
+}
+```
+
+其中我们需要再引入一些子函数
+
+首先是检查括号是否匹配
+
+```cpp
+bool check_parentheses(int left, int right, bool* success) {
+    int parenCount = 0;
+    if(tokens[left].type != TK_LP ||tokens[right].type != TK_RP)
+        return false;
+
+    for(int i = left; i <= right; i++) {
+        if(tokens[i].type == TK_LP) 
+            parenCount++;
+        else if(tokens[i].type == TK_RP)
+            parenCount--;
+    }
+
+    if(parenCount != 0) {
+        *success = false;
+        printf("Incompatible parentheses!");
+        return false;
+    }
+    else return true;
+}
+```
+
+然后是获取主运算符
+
+```cpp
+bool isOperator(int location) {
+//printf("location: %d, tokentype: %c  tokenNum: %d\n", location, tokens[location].type, TK_NUM);
+    if(tokens[location].type == TK_NUM || tokens[location].type == TK_LP || tokens[location].type == TK_RP) {
+        return false;
+    }
+    return true;
+}
+
+int opPriority(int location) {
+    int res;
+    switch(tokens[location].type) {
+        case TK_PLUS:
+        case TK_MINUS: 
+            res = 1;
+            break;
+        case TK_MUL:
+        case TK_DIV:
+            res = 2;
+            break;
+        default:
+            res = 100;
+            break;
+    }
+    return res;
+}
+int getMainOpPos(int left, int right) {
+    int res = -1;
+    for(int i = left; i <= right; i++) {
+//printf("token: %s\n", tokens[i].str);
+        if(isOperator(i)) {
+//printf("operator: %s\n", tokens[i].str);
+            if(opPriority(i) <= opPriority(res) || res == -1) {
+                res = i;
+            }
+        } else if(tokens[i].type == TK_LP) {
+            int parenCount = 1;
+            do {
+                i++;
+                if(tokens[i].type == TK_LP)
+                    parenCount++;
+                else if(tokens[i].type == TK_RP)
+                    parenCount--;
+
+            } while(parenCount != 0 && i <= right); 
+        }
+    }
+    return res;      
+}
+```
 
 
+
+最近我们形成如下函数
+
+```cpp
+uint32_t eval(int left, int right, bool* success) {
+    if(left > right) {
+        success = false;
+        printf("Bad expression!");
+        return 0;
+    } else if(left == right) {
+        return strtoul(tokens[left].str, NULL, 10);
+    } else if(check_parentheses(left, right, success)== true) {
+        return eval(left + 1, right - 1, success);
+    } else {
+        if(*success == false) return 0;
+        int mainOpPos = getMainOpPos(left, right);
+		if(mainOpPos == -1) return 0;
+        
+        uint32_t val1 = eval(left, mainOpPos - 1, success);
+        uint32_t val2 = eval(mainOpPos + 1, right, success);
+
+        switch(tokens[mainOpPos].type) {
+            case TK_PLUS:
+                return val1 + val2;
+            case TK_MINUS:
+                return val1 - val2;
+            case TK_MUL:
+                return val1 * val2;
+            case TK_DIV:
+                return val1 / val2;
+            default:
+                assert(0);
+        }
+    }
+}
+```
+
+
+
+非常简陋的测试运行结果从如下所示
+
+![image-20200812163850950](img/image-20200812163850950.png)
+
+![image-20200812172250510](img/image-20200812172250510.png)
+
+#### bug
+
+一开始getMainOpPos的函数是这样的，结果有括号的情形不对，最后发现while中的i++有问题，最后改成了上面do while的形式
+
+```cpp
+int getMainOpPos(int left, int right) {
+    int res = -1;
+    for(int i = left; i <= right; i++) {
+        if(isOperator(i)) {
+printf("operator: %s\n", tokens[i].str);
+            if(opPriority(i) <= opPriority(res) || res == -1) {
+                res = i;
+            }
+        } else if(tokens[i].type == TK_LP) {
+            int parenCount = 1;
+            i = i + 1;
+            while(parenCount != 0 && i <= right) {
+                if(tokens[i].type == TK_LP)
+                    parenCount++;
+                else if(tokens[i].type == TK_RP)
+                    parenCount--;
+                i++;
+            }
+        }
+    }
+    return res;
+            
+}
+```
 
