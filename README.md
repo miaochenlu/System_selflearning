@@ -609,3 +609,160 @@ printf("operator: %s\n", tokens[i].str);
 }
 ```
 
+
+
+# 20200812
+
+PA1部分完成
+
+- [x] `expr`扩展，支持16进制，寄存器取值，解引用，AND，OR
+
+因此，增加如下token
+
+```cpp
+enum {
+  TK_NOTYPE = 256, 
+  TK_PLUS = '+',
+  TK_MINUS = '-',
+  TK_MUL = '*',
+  TK_DIV = '/',
+  TK_LP = '(',
+  TK_RP = ')',
+  TK_NUM = 1000,
+//增加的token
+  TK_HEX,
+  TK_EQ,
+  TK_NEQ,
+  TK_NOT,
+  TK_AND,
+  TK_OR,
+  TK_REG,
+  TK_DEREF,
+};
+```
+
+扩展语法规则
+
+```cpp
+static struct rule {
+  char *regex;
+  int token_type;
+} rules[] = {
+    {" +",  TK_NOTYPE},         // spaces
+    {"\\+", TK_PLUS},           // plus
+    {"\\-", TK_MINUS},          // minus
+    {"\\*", TK_MUL},            // multiply
+    {"\\/", TK_DIV},            // divide
+    {"\\(", TK_LP},             // left parenthese
+    {"\\)", TK_RP},             // right parenthese
+    {"==",  TK_EQ},             // equal
+    {"!=",  TK_NEQ},            // not equal
+    {"&&",  TK_AND},            // and
+    {"\\|\\|",  TK_OR},         // or
+    {"0[xX][0-9a-fA-F]+", TK_HEX},       // hex num
+    {"\\$pc|\\$0|\\$at|\\$ra|\\$gp|\\$sp|\\$v[0-1]|\\$a[0-3]|\\$t[0-9]|\\$s[0-8]|\\$k[0-1]", TK_REG},
+    {"[0-9]+", TK_NUM},         // number
+};
+```
+
+在`expr`函数中，构建完token之后，再eval之前，需要先进行dereference的判断，否则`*`就会被认为是乘法
+
+```cpp
+uint32_t expr(char *e, bool *success) {
+    if (!make_token(e)) {
+        *success = false;
+        return 0;
+    } 
+//check pointer dereference  
+    for(int i = 0; i < nr_token; i++) {
+        if(tokens[i].type == TK_MUL && (i == 0 || isOperator(i - 1) || tokens[i - 1].type == TK_LP)) {
+            tokens[i].type = TK_DEREF;
+        }
+    }
+    return eval(0, nr_token - 1, success);
+}
+```
+
+* 为了取寄存器的值，实现了`isa_reg_str2val`函数，根据给出的寄存器名称返回对应的寄存器值。
+
+这里发现之前实现的一个问题, 然后把regsl[i]改成了reg_name(i, -1)以应对Index溢出的情况
+
+```cpp
+void isa_reg_display() {
+    for(int i = 0; i < 32; i++) {
+        printf("%s\t0x%08x\n", reg_name(i, -1), reg_l(i));//regsl[i]改成了reg_name(i, -1)
+    }
+}
+
+uint32_t isa_reg_str2val(const char *s, bool *success) {
+    if(strcmp(s + 1, "pc") == 0) return cpu.pc;
+    for(int i = 0; i < 32; i++) {
+        if(strcmp(s + 1, reg_name(i, -1)) == 0) {
+            return reg_l(i);
+        }
+    }
+    *success = false;
+    printf("Invalid register name: %s\n", s);
+    return 0;
+}
+```
+
+* 16进制仍然使用strtoul这个函数， 看一下他的神奇能力吧
+
+![image-20200812210847262](img/image-20200812210847262.png)
+
+* 对于解引用，用vaddr_read进行取值
+
+整个函数如下所示
+
+```cpp
+uint32_t eval(int left, int right, bool* success) {
+    if(left > right) {
+        success = false;
+        printf("Bad expression!");
+        return 0;
+    } else if(left == right) {
+        switch(tokens[left].type) {
+            case TK_NUM:
+            case TK_HEX:
+                return strtoul(tokens[left].str, NULL, 0);
+            case TK_REG:
+                return isa_reg_str2val(tokens[left].str, success);
+            default:
+                printf("Invalid Expression, tokens[%d] is redundant.\n", left);
+                *success = false;
+                return 0;
+        }
+    } else if(check_parentheses(left, right, success)== true) {
+        return eval(left + 1, right - 1, success);
+    } else {
+        if(*success == false) return 0;
+
+        int mainOpPos = getMainOpPos(left, right);
+        if(mainOpPos == -1) return 0;
+        uint32_t val1 = 0, val2 = 0;
+        if(tokens[mainOpPos].type != TK_DEREF)
+            val1 = eval(left, mainOpPos - 1, success);
+        val2 = eval(mainOpPos + 1, right, success);
+        switch(tokens[mainOpPos].type) {
+            case TK_PLUS:
+                return val1 + val2;
+            case TK_MINUS:
+                return val1 - val2;
+            case TK_MUL:
+                return val1 * val2;
+            case TK_DIV:
+                return val1 / val2;
+            case TK_AND:
+                return val1 && val2;
+            case TK_OR:
+                return val1 || val2;
+            case TK_DEREF:
+                return vaddr_read(val2, 1);
+            default:
+                assert(0);
+        }
+    }
+}
+```
+
